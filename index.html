@@ -202,16 +202,7 @@ svg.matching #washes, svg.matching #contours { opacity: .35; transition: opacity
 .d-foot { margin-top: 80px; border-top: 2px solid var(--ink); padding-block: 30px 120px; font-size: 16px; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 10px 40px; }
 .d-foot b { font-family: var(--display); font-size: 26px; color: var(--ink); font-weight: 500; display: block; }
 
-/* Text only */
-.textonly { display: none; max-width: 760px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 140px; font-size: 22px; line-height: 1.6; }
-.textonly h1 { font-family: var(--body); font-size: 34px; font-weight: 800; margin: 0 0 12px; line-height: 1.2; }
-.textonly h2 { font-family: var(--body); font-size: 26px; font-weight: 800; margin: 36px 0 8px; }
-.textonly a { color: var(--link); font-weight: 700; }
-.textonly p { margin: 0 0 14px; }
-.textonly ul { padding-left: 24px; }
-.textonly li { margin-bottom: 14px; }
-html.text-mode .full { display: none; }
-html.text-mode .textonly { display: block; }
+
 @media (prefers-reduced-motion: reduce) { .pin { animation: none; } .chip, .b-cork { transition: none; } }
 </style>
 </head>
@@ -312,32 +303,12 @@ html.text-mode .textonly { display: block; }
 </div>
 </div>
 
-<article class="textonly" id="textonly" aria-label="Text only version">
-  <h1>Real estate in Grants Pass and the Rogue Valley</h1>
-  <p>I'm Jamie, a real estate broker with Fathom Realty. This page is the simple version: plain text and links.</p>
-  <p><a href="#" id="backFull">Back to the full page</a></p>
-  <h2>Talk with me</h2>
-  <p>Call or text (971) 303-2253.</p>
-  <p><a href="https://jamie-the-realtor.com/book-a-consultation/" target="_blank" rel="noopener">Arrange a meeting</a></p>
-  <h2>The dreams people bring here</h2>
-  <ul>
-    <li>A few acres, a garden, some animals. <a href="https://jamie-the-realtor.com/resource-homesteading-rogue-valley/" target="_blank" rel="noopener">Read the homesteading guide</a></li>
-    <li>A slower, simpler life I can afford. <a href="https://jamie-the-realtor.com/resource-relocation-money-guide/" target="_blank" rel="noopener">Read the relocation money guide</a></li>
-    <li>Walking to dinner on a real main street. <a href="https://jamie-the-realtor.com/download-grants-pass-neighborhood-guide/" target="_blank" rel="noopener">Read the Grants Pass neighborhood guide</a></li>
-    <li>Building something of my own on raw land. <a href="https://jamie-the-realtor.com/parcel-report/" target="_blank" rel="noopener">Ask for a parcel report</a></li>
-    <li>A smaller home that still feels like mine. <a href="https://jamie-the-realtor.com/resource-senior-roadmap/" target="_blank" rel="noopener">Read the senior roadmap</a></li>
-    <li>Knowing my land will be loved by someone new. <a href="https://jamie-the-realtor.com/next-steward-program/" target="_blank" rel="noopener">Read about the Next Steward Program</a></li>
-  </ul>
-  <h2>The market this month</h2>
-  <p>In Josephine County in September 2026, the median home sold for $425,000. Homes took about 44 days to sell.</p>
-  <h2>Free guides</h2>
-  <p><a href="https://jamie-the-realtor.com/resource-library/" target="_blank" rel="noopener">See all free guides</a></p>
-</article>
+
 
 <nav class="d-bar" aria-label="Talk with Jamie">
   <a class="primary" href="https://jamie-the-realtor.com/book-a-consultation/" target="_blank" rel="noopener">Arrange a meeting</a>
   <a class="about" href="https://jamie-the-realtor.com/about/" target="_blank" rel="noopener">About Jamie</a>
-  <button type="button" class="txt" id="textBtn" aria-pressed="false">TEXT ONLY</button>
+  <a class="txt" href="https://jamie-the-realtor.com/">Back to homepage</a>
 </nav>
 
 <script>
@@ -722,12 +693,6 @@ html.text-mode .textonly { display: block; }
     const preps = [...new Set(pieces.map(p => p.budget ? "budget" : p.prep))].map(k => PREP[k]);
     document.getElementById("ansPrep").innerHTML = `<h4>What I prepare for you</h4>${preps.length ? preps.map(p => `<p><b>${esc(p.t)}</b><br><span class="muted">${esc(p.d)}</span> <a href="${SITE}${p.link}" target="_blank" rel="noopener">More</a></p>`).join("") : "<p>The documents you'll receive appear here.</p>"}`;
   }
-
-  // TEXT ONLY switch
-  const tb = document.getElementById("textBtn"), root = document.documentElement;
-  const setText = on => { root.classList.toggle("text-mode", on); tb.setAttribute("aria-pressed", String(on)); tb.textContent = on ? "FULL PAGE" : "TEXT ONLY"; scrollTo(0, 0); };
-  tb.onclick = () => setText(!root.classList.contains("text-mode"));
-  document.getElementById("backFull").onclick = e => { e.preventDefault(); setText(false); };
 
   addEventListener("resize", () => board.forEach(el => { el.style.left = Math.min(parseFloat(el.style.left), cork.clientWidth - el.offsetWidth) + "px"; }));
   render();
