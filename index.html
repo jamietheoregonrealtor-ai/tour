@@ -1,0 +1,727 @@
+<title>Find Your Place in the Valley | Grants Pass Real Estate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap">
+<style>
+/* Layout: a painted survey map on the left, a reading card on the right; stacks on phones. Prototype palette. */
+:root {
+  --paper: #f3f2ec;
+  --paper-2: #e9e8e0;
+  --ink: #26302e;
+  --ink-soft: #5d6764;
+  --rule: #cfd0c6;
+  --link: #2f5d4c;
+  --river: #6f93a0;
+  --road: #8a8576;
+  --w-ochre: #d4a95a;
+  --w-sage: #8fa982;
+  --w-rose: #c48f86;
+  --w-slate: #7b9fa0;
+  --w-plum: #9d93b5;
+  --w-moss: #a3a86a;
+  --w-clay: #c7a07c;
+  --w-teal: #6f9a8b;
+  --w-sky: #94adc0;
+  --wash-op: 0.62;
+  --wash-op-hot: 0.9;
+  --contour: rgba(38, 48, 46, 0.13);
+  --card: #fbfaf6;
+  --shadow: rgba(40, 45, 40, 0.18);
+  --display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --body: "Nunito Sans", "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1d2422; --paper-2: #252d2b; --ink: #e8e6dc; --ink-soft: #a9ada3; --rule: #3a4441;
+    --link: #9fcbb6; --river: #7fa6b3; --road: #8d8a7e; --wash-op: 0.42; --wash-op-hot: 0.7;
+    --contour: rgba(232, 230, 220, 0.1); --card: #242c2a; --shadow: rgba(0, 0, 0, 0.45); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #1d2422; --paper-2: #252d2b; --ink: #e8e6dc; --ink-soft: #a9ada3; --rule: #3a4441;
+  --link: #9fcbb6; --river: #7fa6b3; --road: #8d8a7e; --wash-op: 0.42; --wash-op-hot: 0.7;
+  --contour: rgba(232, 230, 220, 0.1); --card: #242c2a; --shadow: rgba(0, 0, 0, 0.45); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.6; margin: 0; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 24px; padding-block: 40px 56px; }
+.note { display: inline-block; font-size: 12.5px; color: var(--ink-soft); border: 1px solid var(--rule); border-radius: 999px; padding: 4px 14px; margin-bottom: 22px; }
+.eyebrow { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 6px; font-weight: 700; }
+h1 { font-family: var(--display); font-weight: 500; font-size: clamp(36px, 5vw, 58px); line-height: 1.05; margin: 0 0 12px; text-wrap: balance; letter-spacing: -0.01em; }
+.lede { max-width: 60ch; color: var(--ink-soft); margin: 0 0 28px; font-size: 17px; }
+.stage { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+@media (max-width: 880px) { .stage { grid-template-columns: 1fr; } .wrap { padding-inline: 16px; padding-block: 28px 40px; } }
+
+.mapbox { position: relative; border-radius: 6px; overflow: hidden; background: var(--paper-2); border: 1px solid var(--rule); }
+.mapbox svg { display: block; width: 100%; height: auto; touch-action: manipulation; }
+.zoom { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; z-index: 2; }
+.zoom button { font: 600 12.5px var(--body); color: var(--ink); background: var(--card); border: 1px solid var(--rule); border-radius: 999px; padding: 6px 13px; cursor: pointer; transition: background .2s, border-color .2s; }
+.zoom button[aria-pressed="true"] { border-color: var(--ink); }
+.zoom button:hover { background: var(--paper); }
+.zoom button:focus-visible, .area-list button:focus-visible, .mapbox .area:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+.scale { position: absolute; right: 14px; bottom: 10px; font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.light { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .4s; mix-blend-mode: soft-light;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 250, 235, 0.75), transparent 70%); }
+.mapbox:hover .light { opacity: 1; }
+
+.area { cursor: pointer; transform-box: fill-box; transform-origin: center; transition: transform .45s cubic-bezier(.2,.8,.2,1), filter .45s; outline: none; }
+.area .fill { fill-opacity: var(--wash-op); transition: fill-opacity .45s; }
+.area .edge { fill: none; stroke-opacity: .55; stroke-width: 1.6; }
+.area.hot { transform: scale(1.07); filter: drop-shadow(0 6px 10px var(--shadow)); }
+.area.hot .fill { fill-opacity: var(--wash-op-hot); }
+.area.dim .fill { fill-opacity: calc(var(--wash-op) * 0.55); }
+.label { font-family: var(--display); fill: var(--ink); pointer-events: none; text-anchor: middle; transition: opacity .4s; }
+.label.region { font-size: 21px; font-weight: 600; letter-spacing: .02em; }
+.label.city { font-size: 3.1px; font-weight: 600; opacity: 0; }
+.zoomed .label.city { opacity: 1; }
+.zoomed .label.region, .zoomed .label.town { opacity: 0; }
+.label.town { font-size: 13.5px; font-style: italic; fill: var(--ink-soft); }
+.label.river { font-size: 14px; font-style: italic; fill: var(--river); letter-spacing: .05em; }
+.shield { font: 700 9px var(--body); fill: var(--paper); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+
+.panel { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 20px); display: grid; gap: 18px; min-width: 0; }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 24px 24px 22px; box-shadow: 0 10px 30px -18px var(--shadow); min-height: 300px; }
+.card .where { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); font-weight: 700; margin: 0 0 4px; }
+.card h2 { font-family: var(--display); font-weight: 500; font-size: 32px; line-height: 1.1; margin: 0 0 12px; text-wrap: balance; }
+.swatch { display: inline-block; width: 26px; height: 6px; border-radius: 3px; margin-bottom: 12px; opacity: .85; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; padding: 0; list-style: none; }
+.chips li { font-size: 12.5px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--rule); color: var(--ink-soft); }
+.card p { margin: 0 0 12px; }
+.card .suits { color: var(--ink-soft); font-size: 15px; }
+.card .suits b { color: var(--ink); font-weight: 600; }
+.card a { color: var(--link); font-weight: 700; text-decoration: none; border-bottom: 1px solid currentColor; }
+.card a:hover { border-bottom-width: 2px; }
+.card .body { transition: opacity .25s, transform .25s; }
+.card .body.out { opacity: 0; transform: translateY(6px); }
+
+.area-list { display: grid; gap: 14px; }
+.area-list h3 { font-size: 11.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); margin: 0 0 6px; font-weight: 700; }
+.area-list ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.area-list button { font: 600 13.5px var(--body); color: var(--ink); background: transparent; border: 1px solid var(--rule); border-radius: 999px; padding: 5px 12px 5px 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; transition: border-color .2s, background .2s; }
+.area-list button i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; opacity: .8; }
+.area-list button.on { border-color: var(--ink); background: var(--card); }
+.foot { margin-top: 22px; font-size: 13px; color: var(--ink-soft); max-width: 75ch; }
+@media (prefers-reduced-motion: reduce) { .area, .area .fill, .card .body, .light { transition: none; } }
+
+/* Dream board: a palette of pieces, a linen board to drop them on, and a live "how to get it" answer with the map lighting up. Senior-friendly: tap to add works everywhere. */
+:root { --linen: #ebe7dc; --linen-2: #e2ddd0; --pin: #9a5d4b; --ok: #2f5d4c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --linen: #262d2b; --linen-2: #2c3431; --pin: #c98b74; --ok: #9fcbb6; } }
+:root[data-theme="dark"] { --linen: #262d2b; --linen-2: #2c3431; --pin: #c98b74; --ok: #9fcbb6; }
+body { font-size: 18px; }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid var(--link); outline-offset: 3px; }
+.b-hero { padding-block: 56px 26px; }
+.b-hero h1 { font-size: clamp(46px, 7vw, 92px); line-height: .98; margin: 0 0 16px; }
+.b-hero .lede { font-size: clamp(19px, 1.8vw, 22px); max-width: 48ch; }
+.b-starters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 26px; }
+.b-starters span { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); font-weight: 800; margin-right: 6px; }
+.b-starters button { font: 600 16px var(--body); color: var(--ink); background: var(--card); border: 1.5px solid var(--rule); border-radius: 999px; padding: 10px 16px; min-height: 44px; cursor: pointer; }
+.b-starters button:hover { border-color: var(--ink); }
+
+.b-work { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.55fr); gap: 26px; align-items: start; }
+@media (max-width: 900px) { .b-work { grid-template-columns: 1fr; } }
+.b-palette h2, .b-board h2, .b-how h2 { font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); font-weight: 800; margin: 0 0 12px; font-family: var(--body); }
+.b-pieces { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 900px) { .b-pieces { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .b-pieces { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.chip { position: relative; background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 0 12px 12px; cursor: grab; user-select: none; touch-action: none; text-align: left; font: inherit; color: inherit; display: block; width: 100%; min-height: 88px; overflow: hidden; transition: transform .25s, box-shadow .25s, opacity .25s; box-shadow: 0 1px 0 var(--rule); }
+.chip::before { content: ""; display: block; height: 14px; margin: 0 -12px 10px; background: var(--c); opacity: .85; }
+.chip b { display: block; font-family: var(--display); font-size: 23px; font-weight: 600; line-height: 1.05; }
+.chip small { display: block; font-size: 13.5px; color: var(--ink-soft); margin-top: 3px; line-height: 1.35; }
+.chip:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -14px var(--shadow); }
+.chip.used { opacity: .38; }
+.chip.dragging { opacity: .25; }
+.ghost { position: fixed; z-index: 100; pointer-events: none; width: 190px; transform: rotate(-3deg) scale(1.05); box-shadow: 0 24px 40px -18px var(--shadow); opacity: .96; }
+
+.b-board { min-width: 0; }
+.b-cork { position: relative; min-height: 430px; border-radius: 10px; border: 1px solid var(--rule); overflow: hidden;
+  background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(0,0,0,.025) 3px 4px), repeating-linear-gradient(90deg, transparent 0 3px, rgba(0,0,0,.02) 3px 4px), var(--linen); transition: box-shadow .3s, background-color .3s; }
+.b-cork.over { box-shadow: inset 0 0 0 3px var(--ok); background-color: var(--linen-2); }
+.b-empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 30px; color: var(--ink-soft); pointer-events: none; }
+.b-empty p { font-family: var(--display); font-size: clamp(24px, 2.6vw, 32px); font-style: italic; margin: 0 0 6px; color: var(--ink); }
+.b-empty small { font-size: 16px; }
+.pin { position: absolute; width: 176px; background: var(--card); border: 1px solid var(--rule); border-radius: 5px; padding: 0 12px 12px; box-shadow: 0 16px 26px -18px var(--shadow); animation: land .5s cubic-bezier(.2,.8,.2,1) both; cursor: grab; touch-action: none; user-select: none; }
+.pin::before { content: ""; display: block; height: 14px; margin: 0 -12px 10px; background: var(--c); opacity: .85; border-radius: 5px 5px 0 0; }
+.pin::after { content: ""; position: absolute; top: -5px; left: 50%; width: 12px; height: 12px; border-radius: 50%; background: var(--pin); box-shadow: 0 2px 3px rgba(0,0,0,.25); transform: translateX(-50%); }
+.pin b { display: block; font-family: var(--display); font-size: 22px; font-weight: 600; line-height: 1.05; }
+.pin small { display: block; font-size: 13px; color: var(--ink-soft); margin-top: 2px; }
+.pin .x { position: absolute; right: 4px; top: 16px; width: 34px; height: 34px; border: 0; background: transparent; color: var(--ink-soft); font-size: 22px; cursor: pointer; border-radius: 50%; }
+.pin .x:hover { background: var(--paper); color: var(--ink); }
+@keyframes land { from { transform: translateY(-14px) rotate(var(--r)) scale(1.06); opacity: .001; } to { transform: rotate(var(--r)); opacity: 1; } }
+.pin { transform: rotate(var(--r)); }
+.pin.budget { width: 260px; }
+.pin.budget output { display: block; font-family: var(--display); font-size: 34px; line-height: 1; margin: 2px 0 6px; font-variant-numeric: lining-nums tabular-nums; }
+.pin.budget input { width: 100%; accent-color: var(--ok); height: 30px; }
+.b-boardbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 15px; color: var(--ink-soft); }
+.b-boardbar button { font: 700 15px var(--body); color: var(--ink-soft); background: transparent; border: 0; cursor: pointer; padding: 8px 4px; min-height: 44px; }
+
+.b-how { margin-top: 70px; border-top: 2px solid var(--ink); padding-top: 22px; }
+.b-how > header h3 { font-family: var(--display); font-weight: 500; font-size: clamp(36px, 4.6vw, 58px); line-height: 1.02; margin: 0 0 8px; }
+.b-how > header p { font-size: 19px; color: var(--ink-soft); margin: 0 0 24px; max-width: 54ch; }
+.b-answers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--rule); margin-top: 28px; }
+@media (max-width: 900px) { .b-answers { grid-template-columns: 1fr; } }
+.b-ans { padding: 20px 22px 22px 0; min-width: 0; border-bottom: 1px solid var(--rule); }
+.b-ans + .b-ans { padding-left: 22px; border-left: 1px solid var(--rule); }
+@media (max-width: 900px) { .b-ans + .b-ans { padding-left: 0; border-left: 0; } }
+.b-ans h4 { font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: var(--ok); margin: 0 0 10px; font-weight: 800; }
+.b-ans .big { font-family: var(--display); font-size: clamp(34px, 3.6vw, 46px); line-height: 1; margin: 0 0 8px; font-variant-numeric: lining-nums tabular-nums; }
+.b-ans ul { margin: 0; padding-left: 20px; }
+.b-ans li { margin-bottom: 8px; }
+.b-ans p { margin: 0 0 8px; }
+.b-ans .muted { color: var(--ink-soft); font-size: 15.5px; }
+.b-ans a { color: var(--link); font-weight: 700; }
+.area.match .fill { fill: var(--ok) !important; fill-opacity: .78 !important; }
+.area.match .edge { stroke: var(--ok) !important; stroke-width: 3; stroke-opacity: 1; }
+.area.match { animation: lit 1.6s ease-out 1; filter: drop-shadow(0 6px 10px var(--shadow)); }
+@keyframes lit { 0% { transform: scale(1); } 35% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.area.nomatch .fill { fill: #9b9c94 !important; fill-opacity: .22 !important; }
+.area.nomatch .edge { stroke-opacity: .15; }
+svg.matching #washes, svg.matching #contours { opacity: .35; transition: opacity .5s; }
+.label.lit { fill: var(--paper); stroke: var(--ok); stroke-width: 4px; paint-order: stroke; font-weight: 700; }
+.label.unlit { opacity: .3; }
+.b-mapempty { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 3; pointer-events: none; transition: opacity .4s; width: max-content; max-width: calc(100% - 32px); }
+.b-mapempty span { display: block; background: var(--card); border: 1px solid var(--rule); border-radius: 999px; padding: 9px 18px; font-weight: 700; font-size: 15.5px; box-shadow: 0 10px 24px -16px var(--shadow); }
+.b-mapempty.gone { opacity: 0; }
+.b-maphint { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; color: var(--ink-soft); margin: 0 0 14px; }
+.b-maphint i { width: 14px; height: 14px; border-radius: 50%; background: var(--ok); display: inline-block; }
+@media (prefers-reduced-motion: reduce) { .area.match { animation: none; } }
+.b-send { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 20px 22px; }
+.b-send p { margin: 0; flex: 1 1 320px; font-size: 19px; }
+.b-send a { background: var(--ink); color: var(--paper); text-decoration: none; font-weight: 800; padding: 12px 20px; border-radius: 999px; min-height: 44px; display: inline-flex; align-items: center; }
+
+.d-bar { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); transform: translateX(-50%); z-index: 40; display: flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--rule); border-radius: 999px; padding: 6px; box-shadow: 0 14px 34px -18px var(--shadow); max-width: calc(100% - 24px); }
+.d-bar a, .d-bar button { text-decoration: none; color: var(--ink); font: 800 16px var(--body); padding: 10px 16px; border-radius: 999px; white-space: nowrap; min-height: 44px; display: inline-flex; align-items: center; background: transparent; border: 0; cursor: pointer; }
+.d-bar a.primary { background: var(--ink); color: var(--paper); }
+.d-bar .txt { letter-spacing: .08em; border: 1.5px solid var(--ink); }
+@media (max-width: 560px) { .d-bar a, .d-bar button { padding: 10px 10px; font-size: 14px; } .d-bar .about { display: none; } }
+.d-foot { margin-top: 80px; border-top: 2px solid var(--ink); padding-block: 30px 120px; font-size: 16px; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 10px 40px; }
+.d-foot b { font-family: var(--display); font-size: 26px; color: var(--ink); font-weight: 500; display: block; }
+
+/* Text only */
+.textonly { display: none; max-width: 760px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 140px; font-size: 22px; line-height: 1.6; }
+.textonly h1 { font-family: var(--body); font-size: 34px; font-weight: 800; margin: 0 0 12px; line-height: 1.2; }
+.textonly h2 { font-family: var(--body); font-size: 26px; font-weight: 800; margin: 36px 0 8px; }
+.textonly a { color: var(--link); font-weight: 700; }
+.textonly p { margin: 0 0 14px; }
+.textonly ul { padding-left: 24px; }
+.textonly li { margin-bottom: 14px; }
+html.text-mode .full { display: none; }
+html.text-mode .textonly { display: block; }
+@media (prefers-reduced-motion: reduce) { .pin { animation: none; } .chip, .b-cork { transition: none; } }
+</style>
+
+<div class="full">
+<div class="wrap">
+  <span class="note">Prototype. Colors and name are placeholders; photos of real places will join the pieces later.</span>
+  <section class="b-hero">
+    <p class="eyebrow">Your dream board</p>
+    <h1>What would your life here look like?</h1>
+    <p class="lede">Drag the things you want onto your board, or tap them. Your answer builds itself below: where it's possible, what it costs, and what to check.</p>
+  </section>
+  <div class="b-starters" id="starters"><span>Or start from a dream</span></div>
+
+  <div class="b-work">
+    <section class="b-palette" aria-label="Pieces to add">
+      <h2>Pieces</h2>
+      <div class="b-pieces" id="pieces"></div>
+    </section>
+    <section class="b-board" aria-label="Your board">
+      <h2>Your board</h2>
+      <div class="b-cork" id="cork">
+        <div class="b-empty" id="empty"><div><p>Your board is empty</p><small>Drag a piece here, or tap one to add it.</small></div></div>
+      </div>
+      <div class="b-boardbar"><span id="count">0 pieces</span><a href="#how" id="seeMap" hidden style="font-weight:800;color:var(--ok);text-decoration:none;padding:8px 4px">See where it fits on the map ↓</a><button type="button" id="clear">Clear the board</button></div>
+    </section>
+  </div>
+
+  <section class="b-how" id="how" aria-live="polite">
+    <header>
+      <p class="eyebrow">How to get it</p>
+      <h3 id="howTitle">Add a piece to see where it fits</h3>
+      <p id="howSub">The map lights up where your board fits best.</p>
+      <p class="b-maphint"><i></i>Green areas fit your board best. Gray areas fit less of it.</p>
+    </header>
+  <div class="stage">
+    <div class="mapbox" id="mapbox">
+      <div class="zoom" role="group" aria-label="Map view">
+        <button type="button" id="z-all" aria-pressed="true">Whole area</button>
+        <button type="button" id="z-city" aria-pressed="false">Grants Pass up close</button>
+      </div>
+      <svg id="map" viewBox="0 0 1000 813" role="group" aria-label="Painted map of the Grants Pass area">
+        <defs>
+          <filter id="wash" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="3" seed="4" result="n"/>
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="16" xChannelSelector="R" yChannelSelector="G" result="d"/>
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="9" result="g"/>
+            <feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.1 1.15" result="ga"/>
+            <feComposite in="d" in2="ga" operator="in"/>
+          </filter>
+          <filter id="wash-fine" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="3" seed="4" result="n"/>
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" xChannelSelector="R" yChannelSelector="G"/>
+          </filter>
+          <filter id="brush" x="-5%" y="-5%" width="110%" height="110%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="2" result="n"/>
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+          </filter>
+          <filter id="paper" x="0" y="0" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" seed="7"/>
+            <feColorMatrix type="matrix" values="0 0 0 0 0.4  0 0 0 0 0.38  0 0 0 0 0.33  0 0 0 0.09 0"/>
+          </filter>
+        </defs>
+        <rect width="1000" height="813" fill="var(--paper-2)"/>
+        <rect width="1000" height="813" filter="url(#paper)"/>
+        <g id="contours" fill="none" stroke="var(--contour)" stroke-width="1"></g>
+        <g id="washes"></g>
+        <g id="roads" fill="none" stroke="var(--road)" stroke-width="1.3" stroke-dasharray="7 4" vector-effect="non-scaling-stroke"></g>
+        <g id="rivers" fill="none" stroke="var(--river)" stroke-linecap="round" filter="url(#brush)"></g>
+        <g id="areas"></g>
+        <g id="labels"></g>
+      </svg>
+      <div class="light" aria-hidden="true"></div>
+      <div class="b-mapempty" id="mapHint"><span>Add pieces to your board above, and this map lights up where they fit.</span></div>
+      <div class="scale" id="scale">10 miles</div>
+    </div>
+
+    <aside class="panel" aria-live="polite">
+      <div class="card">
+        <div class="body" id="cardBody"></div>
+      </div>
+      <nav class="area-list" id="areaList" aria-label="Choose an area"></nav>
+    </aside>
+  </div>
+
+    <div class="b-answers">
+      <div class="b-ans" id="ansBudget"></div>
+      <div class="b-ans" id="ansCheck"></div>
+      <div class="b-ans" id="ansPrep"></div>
+    </div>
+    <div class="b-send">
+      <p>Bring your board to a first conversation. I'll turn it into a written plan: the areas, the numbers and the checks, specific to you.</p>
+      <a href="https://jamie-the-realtor.com/book-a-consultation/" target="_blank" rel="noopener">Arrange a meeting</a>
+    </div>
+  </section>
+  <footer class="d-foot"><div><b>Jamie</b>Jamie Eldrett, REALTOR® · Licensed in Oregon · Fathom Realty</div><div>Call or text (971) 303-2253</div></footer>
+</div>
+</div>
+
+<article class="textonly" id="textonly" aria-label="Text only version">
+  <h1>Real estate in Grants Pass and the Rogue Valley</h1>
+  <p>I'm Jamie, a real estate broker with Fathom Realty. This page is the simple version: plain text and links.</p>
+  <p><a href="#" id="backFull">Back to the full page</a></p>
+  <h2>Talk with me</h2>
+  <p>Call or text (971) 303-2253.</p>
+  <p><a href="https://jamie-the-realtor.com/book-a-consultation/" target="_blank" rel="noopener">Arrange a meeting</a></p>
+  <h2>The dreams people bring here</h2>
+  <ul>
+    <li>A few acres, a garden, some animals. <a href="https://jamie-the-realtor.com/resource-homesteading-rogue-valley/" target="_blank" rel="noopener">Read the homesteading guide</a></li>
+    <li>A slower, simpler life I can afford. <a href="https://jamie-the-realtor.com/resource-relocation-money-guide/" target="_blank" rel="noopener">Read the relocation money guide</a></li>
+    <li>Walking to dinner on a real main street. <a href="https://jamie-the-realtor.com/download-grants-pass-neighborhood-guide/" target="_blank" rel="noopener">Read the Grants Pass neighborhood guide</a></li>
+    <li>Building something of my own on raw land. <a href="https://jamie-the-realtor.com/parcel-report/" target="_blank" rel="noopener">Ask for a parcel report</a></li>
+    <li>A smaller home that still feels like mine. <a href="https://jamie-the-realtor.com/resource-senior-roadmap/" target="_blank" rel="noopener">Read the senior roadmap</a></li>
+    <li>Knowing my land will be loved by someone new. <a href="https://jamie-the-realtor.com/next-steward-program/" target="_blank" rel="noopener">Read about the Next Steward Program</a></li>
+  </ul>
+  <h2>The market this month</h2>
+  <p>In Josephine County in September 2026, the median home sold for $425,000. Homes took about 44 days to sell.</p>
+  <h2>Free guides</h2>
+  <p><a href="https://jamie-the-realtor.com/resource-library/" target="_blank" rel="noopener">See all free guides</a></p>
+</article>
+
+<nav class="d-bar" aria-label="Talk with Jamie">
+  <a class="primary" href="https://jamie-the-realtor.com/book-a-consultation/" target="_blank" rel="noopener">Arrange a meeting</a>
+  <a class="about" href="https://jamie-the-realtor.com/about/" target="_blank" rel="noopener">About Jamie</a>
+  <button type="button" class="txt" id="textBtn" aria-pressed="false">TEXT ONLY</button>
+</nav>
+
+<script>
+(function () {
+  "use strict";
+  const LON0 = -123.80, LAT1 = 42.62, KX = 1000 / 0.9, KY = KX / 0.7385, KM = KY / 111;
+  const P = (lat, lon) => [(lon - LON0) * KX, (LAT1 - lat) * KY];
+  const NS = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+  const SITE = "https://jamie-the-realtor.com/";
+
+  const AREAS = [
+    { id: "downtown", group: "In the city", city: true, name: "Downtown and the River District", where: "The heart of the city, on the Rogue",
+      lat: 42.437, lon: -123.327, rx: 1.3, ry: 0.95, rot: 0, color: "--w-ochre",
+      chips: ["Walkable", "Character homes", "River access"],
+      text: "G Street is a working main street with local restaurants, shops and a Saturday market through the warm months. Craftsman homes and bungalows surround it, some restored and some ready for work, and Riverside Park is used all year.",
+      suits: "buyers who want to walk to dinner and like older homes with character.",
+      link: "grants-pass-oregon-real-estate/", linkText: "Grants Pass homes and prices" },
+    { id: "north", group: "In the city", city: true, name: "North Grants Pass", where: "North of the river, near I-5",
+      lat: 42.458, lon: -123.322, rx: 2.8, ry: 1.25, rot: -5, color: "--w-sage",
+      chips: ["Suburban", "Newer construction", "Freeway access"],
+      text: "The most conventional suburban part of town: more HOAs, more recent building, and consistent neighborhoods where many families have lived for decades.",
+      suits: "newcomers from larger cities who want something familiar while they learn the valley.",
+      link: "grants-pass-oregon-real-estate/", linkText: "Grants Pass homes and prices" },
+    { id: "west", group: "In the city", city: true, name: "West Side and Redwood", where: "Southwest of downtown",
+      lat: 42.419, lon: -123.368, rx: 2.3, ry: 1.45, rot: -25, color: "--w-rose",
+      chips: ["Established", "Mature trees", "Quiet streets"],
+      text: "Mid-century homes, some larger lots and quiet, tree-lined streets. Long-time families live here and rarely move, so homes come up less often.",
+      suits: "buyers who want a settled neighborhood and can wait for the right listing.",
+      link: "grants-pass-oregon-real-estate/", linkText: "Grants Pass homes and prices" },
+    { id: "merlin", group: "Just outside town", name: "Merlin", where: "10 to 15 minutes northwest",
+      lat: 42.513, lon: -123.432, rx: 5.6, ry: 3.8, rot: -35, color: "--w-slate",
+      chips: ["Rural residential", "Rogue River access", "Acreage"],
+      text: "Here the Rogue opens into rafting and fishing country, with Hellgate Canyon up the road. Expect modest rural homes, acreage, and some of the most affordable rural land near town.",
+      suits: "people who want space and the river without a long drive.",
+      link: "merlin-oregon-real-estate/", linkText: "Merlin homes and land" },
+    { id: "rogueriver", group: "Just outside town", name: "Rogue River", where: "About 15 minutes east on I-5",
+      lat: 42.437, lon: -123.168, rx: 3.6, ry: 2.5, rot: 0, color: "--w-plum",
+      chips: ["Small town", "Lower prices", "Medford access"],
+      text: "A quiet small town that buyers focused on Grants Pass tend to overlook. Few homes come up for sale, which has kept prices more accessible.",
+      suits: "buyers splitting the difference between Grants Pass and Medford.",
+      link: "rogue-river-oregon-real-estate/", linkText: "Rogue River homes and prices" },
+    { id: "murphy", group: "Just outside town", name: "Murphy", where: "South of town on Highway 238",
+      lat: 42.343, lon: -123.336, rx: 4.6, ry: 3.4, rot: 30, color: "--w-moss",
+      chips: ["Agricultural", "Larger parcels", "Pasture"],
+      text: "Rural and farm land opens up south of town: larger parcels at more accessible prices, pasture, and room for animals and a garden.",
+      suits: "buyers who want land for small-scale farming and accept that errands take planning.",
+      link: "murphy-oregon-real-estate/", linkText: "Murphy homes and acreage" },
+    { id: "applegate", group: "Further out", name: "Applegate Valley", where: "25 to 40 minutes southeast",
+      lat: 42.272, lon: -123.14, rx: 7, ry: 3.4, rot: 22, color: "--w-clay",
+      chips: ["Wine country", "Scenic", "Working farms"],
+      text: "A winding corridor toward Jacksonville, with wineries, farms, a small arts community and some of the finest scenery in the region.",
+      suits: "buyers drawn to the lifestyle who accept the drive for daily errands.",
+      link: "download-grants-pass-neighborhood-guide/", linkText: "Read the neighborhood guide" },
+    { id: "williams", group: "Further out", name: "Williams", where: "About 30 minutes south",
+      lat: 42.214, lon: -123.292, rx: 4, ry: 4.6, rot: 0, color: "--w-teal",
+      chips: ["Homesteading", "Organic farming", "Off-grid"],
+      text: "A small community with a strong identity around organic farming, homesteading and intentional living. Services are limited, and properties range from raw land to established homesteads.",
+      suits: "buyers looking for a slower, land-based life.",
+      link: "williams-oregon-real-estate/", linkText: "Williams homes and land" },
+    { id: "illinois", group: "Further out", name: "Cave Junction and the Illinois Valley", where: "About 40 minutes southwest",
+      lat: 42.208, lon: -123.636, rx: 5, ry: 9, rot: 8, color: "--w-sky",
+      chips: ["Remote rural", "Affordable land", "Close community"],
+      text: "A place of its own rather than a commute to Grants Pass, with some of the most affordable land in the region and a close, distinct community.",
+      suits: "buyers who want the Illinois Valley life itself.",
+      link: "cave-junction-oregon-real-estate/", linkText: "Cave Junction homes and land" }
+  ];
+
+  const RIVERS = [
+    { name: "Rogue River", w: 4.2, label: [42.452, -123.53, -38], pts: [[42.43,-122.90],[42.432,-123.00],[42.428,-123.06],[42.434,-123.12],[42.433,-123.17],[42.425,-123.22],[42.43,-123.27],[42.433,-123.31],[42.435,-123.335],[42.43,-123.37],[42.428,-123.41],[42.44,-123.44],[42.47,-123.452],[42.50,-123.47],[42.53,-123.50],[42.555,-123.56],[42.567,-123.60],[42.59,-123.66],[42.62,-123.72]] },
+    { name: "Applegate River", w: 2.8, label: [42.205, -123.035, -62], pts: [[42.08,-123.10],[42.16,-123.06],[42.22,-123.06],[42.245,-123.11],[42.257,-123.168],[42.29,-123.23],[42.32,-123.29],[42.35,-123.345],[42.385,-123.40],[42.427,-123.438]] },
+    { name: "Illinois River", w: 2.8, label: [42.33, -123.745, -28], pts: [[42.08,-123.60],[42.13,-123.63],[42.165,-123.66],[42.20,-123.665],[42.24,-123.64],[42.28,-123.625],[42.31,-123.66],[42.33,-123.72],[42.35,-123.80]] }
+  ];
+  const ROADS = [
+    { ref: "5", at: 4, pts: [[42.37,-122.90],[42.40,-122.98],[42.43,-123.05],[42.445,-123.12],[42.442,-123.17],[42.45,-123.25],[42.462,-123.30],[42.47,-123.33],[42.50,-123.35],[42.55,-123.37],[42.62,-123.39]] },
+    { ref: "199", at: 4, pts: [[42.425,-123.345],[42.40,-123.43],[42.39,-123.47],[42.375,-123.55],[42.33,-123.58],[42.28,-123.61],[42.20,-123.65],[42.163,-123.648],[42.08,-123.70]] },
+    { ref: "238", at: 6, pts: [[42.43,-123.33],[42.39,-123.335],[42.355,-123.335],[42.32,-123.27],[42.29,-123.23],[42.257,-123.168],[42.24,-123.09],[42.235,-123.04],[42.30,-122.97],[42.313,-122.95]] },
+    { ref: "", pts: [[42.355,-123.335],[42.30,-123.31],[42.25,-123.29],[42.214,-123.292]] }
+  ];
+  const TOWNS = [["Jacksonville", 42.313, -122.967, 0, 16], ["Medford →", 42.37, -122.935, 0, -10], ["Wilderville", 42.391, -123.471, 0, 18], ["Selma", 42.279, -123.616, 30, 4], ["Galice", 42.567, -123.60, 0, -12]];
+
+  // Smooth closed path through points (Catmull-Rom to cubic Bezier)
+  function closedPath(pts) {
+    const n = pts.length; let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+    for (let i = 0; i < n; i++) {
+      const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+      const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+      const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      d += `C${c1[0].toFixed(2)},${c1[1].toFixed(2)} ${c2[0].toFixed(2)},${c2[1].toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
+    }
+    return d + "Z";
+  }
+  function openPath(pts) {
+    let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+      const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+      const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      d += `C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+    }
+    return d;
+  }
+  let seed = 11;
+  const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  function blob(cx, cy, rx, ry, rotDeg, wobble) {
+    const pts = [], N = 40, r = rotDeg * Math.PI / 180, s1 = rnd() * 6.28, s2 = rnd() * 6.28, s3 = rnd() * 6.28;
+    for (let i = 0; i < N; i++) {
+      const t = i / N * Math.PI * 2;
+      const k = 1 + wobble * (0.55 * Math.sin(3 * t + s1) + 0.3 * Math.sin(5 * t + s2) + 0.15 * Math.sin(8 * t + s3));
+      const x = Math.cos(t) * rx * k, y = Math.sin(t) * ry * k;
+      pts.push([cx + x * Math.cos(r) - y * Math.sin(r), cy + x * Math.sin(r) + y * Math.cos(r)]);
+    }
+    return closedPath(pts);
+  }
+
+  const svg = document.getElementById("map");
+  const gC = document.getElementById("contours"), gW = document.getElementById("washes"), gR = document.getElementById("roads"),
+        gRv = document.getElementById("rivers"), gA = document.getElementById("areas"), gL = document.getElementById("labels");
+
+  // Decorative terrain: soft ridges in the Siskiyous and the hills around the valley
+  [[42.13, -123.40, 9], [42.12, -122.98, 7], [42.57, -123.17, 7], [42.31, -123.48, 6], [42.58, -123.78, 6], [42.17, -123.78, 5]].forEach(([la, lo, rings]) => {
+    const [cx, cy] = P(la, lo);
+    for (let i = 1; i <= rings; i++) el("path", { d: blob(cx, cy, i * 15 + 8, i * 11 + 6, rnd() * 60 - 30, 0.12) }, gC);
+  });
+  // Broad background washes for depth
+  [[42.42, -123.33, 230, 120, "--w-sage", 0.18], [42.18, -123.30, 300, 110, "--w-teal", 0.12], [42.55, -123.55, 200, 90, "--w-slate", 0.12]].forEach(([la, lo, rx, ry, c, op]) => {
+    const [cx, cy] = P(la, lo);
+    el("path", { d: blob(cx, cy, rx, ry, -10, 0.18), fill: `var(${c})`, "fill-opacity": op, filter: "url(#wash)" }, gW);
+  });
+  ROADS.forEach(r => {
+    const pts = r.pts.map(p => P(p[0], p[1]));
+    el("path", { d: openPath(pts), "vector-effect": "non-scaling-stroke" }, gR);
+    if (r.ref) {
+      const [x, y] = pts[r.at];
+      const g = el("g", { class: "road-shield" }, gL);
+      el("rect", { x: x - 12, y: y - 7, width: 24, height: 14, rx: 3, fill: "var(--road)" }, g);
+      const t = el("text", { x, y, class: "shield" }, g); t.textContent = r.ref === "5" ? "I-5" : r.ref;
+    }
+  });
+  RIVERS.forEach(rv => {
+    const pts = rv.pts.map(p => P(p[0], p[1]));
+    el("path", { d: openPath(pts), "stroke-width": rv.w, "stroke-opacity": 0.85 }, gRv);
+    el("path", { d: openPath(pts), "stroke-width": rv.w * 3.2, "stroke-opacity": 0.14 }, gRv);
+    const [x, y] = P(rv.label[0], rv.label[1]);
+    const t = el("text", { x, y, class: "label river town", transform: `rotate(${rv.label[2]} ${x} ${y})` }, gL); t.textContent = rv.name;
+  });
+  TOWNS.forEach(([n, la, lo, rot, dy]) => {
+    const [x, y] = P(la, lo);
+    el("circle", { cx: x, cy: y, r: 2.4, fill: "var(--ink-soft)", class: "label town" }, gL);
+    const t = el("text", { x, y: y + dy, class: "label town" }, gL); t.textContent = n;
+  });
+
+  // The nine areas
+  const byId = {};
+  AREAS.forEach(a => {
+    const [cx, cy] = P(a.lat, a.lon);
+    a.cx = cx; a.cy = cy;
+    const g = el("g", { class: "area", tabindex: "0", role: "button", "aria-label": a.name, "data-id": a.id }, gA);
+    const grow = a.city ? 1 : 1.32;
+    const d = blob(cx, cy, a.rx * KM * grow, a.ry * KM * grow, a.rot, a.city ? 0.1 : 0.14);
+    el("path", { d, class: "fill", fill: `var(${a.color})`, filter: a.city ? "url(#wash-fine)" : "url(#wash)" }, g);
+    el("path", { d, class: "edge", stroke: `var(${a.color})`, filter: a.city ? "url(#wash-fine)" : "url(#brush)" }, g);
+    const lbl = el("text", { x: cx, y: a.city ? cy + 1 : cy + 5, class: "label " + (a.city ? "city" : "region"), "data-for": a.id }, gL);
+    lbl.textContent = a.city ? a.name.replace(" and the River District", "").replace(" and Redwood", " & Redwood") : a.name.replace("Cave Junction and the ", "");
+    a.g = g; byId[a.id] = a;
+  });
+  window.__areaMap = { light(ids, active) { AREAS.forEach(a => { a.g.classList.remove("match"); void a.g.getBBox(); a.g.classList.toggle("match", active && ids.includes(a.id)); a.g.classList.toggle("nomatch", active && !ids.includes(a.id)); const l = svg.querySelector(`[data-for="${a.id}"]`); if (l) { l.classList.toggle("lit", active && ids.includes(a.id)); l.classList.toggle("unlit", active && !ids.includes(a.id)); } }); svg.classList.toggle("matching", !!active); } };
+  const [gx, gy] = P(42.437, -123.327);
+  const gpDot = el("text", { x: gx, y: gy - 22, class: "label region gp" }, gL); gpDot.textContent = "Grants Pass";
+  gpDot.style.fontSize = "19px";
+
+  // Reading card
+  const body = document.getElementById("cardBody");
+  const intro = () => `<p class="where">Start here</p><h2>Nine areas, one valley</h2>
+    <p>Each area has its own character, price range and daily rhythm. Choose one to see what it is like and who tends to love it.</p>
+    <p class="suits"><b>Not sure where to begin?</b> Walkability points to Downtown, space near town to Merlin, acreage to Murphy, and wine country to the Applegate.</p>`;
+  const detail = a => `<p class="where">${a.where}</p><span class="swatch" style="background:var(${a.color})"></span>
+    <h2>${a.name}</h2><ul class="chips">${a.chips.map(c => `<li>${c}</li>`).join("")}</ul>
+    <p>${a.text}</p><p class="suits"><b>Often a fit for</b> ${a.suits}</p>
+    <a href="${SITE}${a.link}" target="_blank" rel="noopener">${a.linkText}</a>`;
+  let current = null, pinned = null, swapTimer = 0;
+  function show(id) {
+    if (id === current) return; current = id;
+    AREAS.forEach(a => { a.g.classList.toggle("hot", a.id === id); a.g.classList.toggle("dim", !!id && a.id !== id); });
+    document.querySelectorAll(".area-list button").forEach(b => b.classList.toggle("on", b.dataset.id === id));
+    body.classList.add("out"); clearTimeout(swapTimer);
+    swapTimer = setTimeout(() => { body.innerHTML = id ? detail(byId[id]) : intro(); body.classList.remove("out"); }, reduce ? 0 : 160);
+  }
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  body.innerHTML = intro();
+
+  // Area list (also the keyboard and touch path)
+  const list = document.getElementById("areaList");
+  ["In the city", "Just outside town", "Further out"].forEach(grp => {
+    const sec = document.createElement("div");
+    sec.innerHTML = `<h3>${grp}</h3><ul></ul>`;
+    AREAS.filter(a => a.group === grp).forEach(a => {
+      const li = document.createElement("li");
+      li.innerHTML = `<button type="button" data-id="${a.id}"><i style="background:var(${a.color})"></i>${a.name.replace(" and the River District", "").replace("Cave Junction and the ", "")}</button>`;
+      sec.querySelector("ul").appendChild(li);
+    });
+    list.appendChild(sec);
+  });
+  list.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; pinned = b.dataset.id; const a = byId[pinned]; if (a.city && !zoomed) setZoom(true); show(pinned); });
+  list.addEventListener("mouseover", e => { const b = e.target.closest("button"); if (b) show(b.dataset.id); });
+  list.addEventListener("mouseleave", () => show(pinned));
+
+  gA.addEventListener("pointerover", e => { const g = e.target.closest(".area"); if (g) show(g.dataset.id); });
+  gA.addEventListener("pointerleave", () => show(pinned));
+  gA.addEventListener("click", e => { const g = e.target.closest(".area"); if (g) { pinned = g.dataset.id; show(pinned); } });
+  gA.addEventListener("focusin", e => { const g = e.target.closest(".area"); if (g) show(g.dataset.id); });
+  gA.addEventListener("keydown", e => { const g = e.target.closest(".area"); if (g && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pinned = g.dataset.id; show(pinned); } });
+
+  // Zoom between the whole area and the city
+  const FULL = [0, 0, 1000, 813], CITY = [452, 222, 140, 114];
+  let zoomed = false, vb = FULL.slice(), anim = 0;
+  const zAll = document.getElementById("z-all"), zCity = document.getElementById("z-city"), scaleEl = document.getElementById("scale");
+  function setZoom(z) {
+    zoomed = z; zAll.setAttribute("aria-pressed", String(!z)); zCity.setAttribute("aria-pressed", String(z));
+    svg.classList.toggle("zoomed", z); scaleEl.textContent = z ? "1 mile" : "10 miles";
+    const from = vb.slice(), to = z ? CITY : FULL, t0 = performance.now(), dur = reduce ? 0 : 1100;
+    cancelAnimationFrame(anim);
+    const step = now => {
+      const t = dur ? Math.min(1, (now - t0) / dur) : 1, e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      vb = from.map((v, i) => v + (to[i] - v) * e);
+      svg.setAttribute("viewBox", vb.map(v => v.toFixed(2)).join(" "));
+      if (t < 1) anim = requestAnimationFrame(step);
+    };
+    anim = requestAnimationFrame(step);
+  }
+  zAll.addEventListener("click", () => setZoom(false));
+  zCity.addEventListener("click", () => setZoom(true));
+
+  // Cursor: soft light follows the pointer; terrain and washes drift slightly for depth
+  const box = document.getElementById("mapbox");
+  if (!reduce) box.addEventListener("pointermove", e => {
+    const r = box.getBoundingClientRect(), px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
+    box.style.setProperty("--mx", (px * 100).toFixed(1) + "%"); box.style.setProperty("--my", (py * 100).toFixed(1) + "%");
+    const k = zoomed ? 0.12 : 1;
+    gC.setAttribute("transform", `translate(${((px - .5) * -14 * k).toFixed(2)} ${((py - .5) * -10 * k).toFixed(2)})`);
+    gW.setAttribute("transform", `translate(${((px - .5) * -7 * k).toFixed(2)} ${((py - .5) * -5 * k).toFixed(2)})`);
+  });
+})();
+</script>
+<script>
+(function () {
+  "use strict";
+  const SITE = "https://jamie-the-realtor.com/";
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const AREA_NAMES = { downtown: "Downtown", north: "North Grants Pass", west: "West Side and Redwood", merlin: "Merlin", rogueriver: "Rogue River", murphy: "Murphy", applegate: "Applegate Valley", williams: "Williams", illinois: "Illinois Valley" };
+  const PIECES = [
+    { id: "acres", name: "A few acres", note: "Room to spread out", c: "--w-moss", areas: ["murphy", "merlin", "applegate", "williams", "illinois"], check: "Legal access, well and septic, and wildfire risk", prep: "parcel" },
+    { id: "garden", name: "A real garden", note: "Beds, orchard, greenhouse", c: "--w-sage", areas: ["murphy", "merlin", "applegate", "williams", "west"], check: "Water for irrigation: well flow or irrigation rights of record", prep: "parcel" },
+    { id: "animals", name: "Animals", note: "Chickens, goats, horses", c: "--w-clay", areas: ["murphy", "williams", "merlin", "applegate"], check: "Zoning that allows the animals you want, and fencing", prep: "parcel" },
+    { id: "shop", name: "A shop", note: "Room to make and fix", c: "--w-ochre", areas: ["murphy", "merlin", "applegate", "west", "williams"], check: "Permits for outbuildings, and power to the shop", prep: "parcel" },
+    { id: "walk", name: "Walk to dinner", note: "Shops, cafes, a main street", c: "--w-rose", areas: ["downtown"], check: "Older homes: foundation, wiring, roof and sewer line", prep: "cma" },
+    { id: "river", name: "Near the river", note: "Water you can hear", c: "--w-slate", areas: ["merlin", "downtown", "applegate", "illinois"], check: "Flood zone and what it does to insurance", prep: "cma" },
+    { id: "offgrid", name: "Off-grid", note: "Your own power and water", c: "--w-teal", areas: ["williams", "illinois", "applegate"], check: "What Oregon land-use rules allow you to build, septic approval, and the water source", prep: "parcel" },
+    { id: "view", name: "A view", note: "Hills and open sky", c: "--w-sky", areas: ["applegate", "merlin", "williams"], check: "Road access and maintenance in winter", prep: "parcel" },
+    { id: "onelevel", name: "One level", note: "No stairs to manage", c: "--w-rose", areas: ["north", "west", "rogueriver", "downtown"], check: "Entry steps, doorway widths and the bathroom layout", prep: "cma" },
+    { id: "easy", name: "Low upkeep", note: "More life, less yard", c: "--w-sage", areas: ["north", "rogueriver", "downtown"], check: "HOA or park fees and rules", prep: "cma" },
+    { id: "hospital", name: "Near a hospital", note: "Care close by", c: "--w-slate", areas: ["downtown", "north", "west"], check: "Drive time to Asante Three Rivers and to your own doctors", prep: "cma" },
+    { id: "quiet", name: "Quiet", note: "Few neighbors, little traffic", c: "--w-moss", areas: ["west", "rogueriver", "merlin", "williams"], check: "What could be built on the land around you", prep: "parcel" },
+    { id: "community", name: "Community", note: "Neighbors who know you", c: "--w-ochre", areas: ["downtown", "williams", "rogueriver"], check: "Local groups, markets and events near the home", prep: "cma" },
+    { id: "wine", name: "Wine country", note: "Vineyards down the road", c: "--w-clay", areas: ["applegate"], check: "Farm use next door: spraying, noise and harvest traffic", prep: "parcel" },
+    { id: "budget", name: "A budget", note: "Set your top price", c: "--w-teal", budget: true }
+  ];
+  const PREP = { parcel: { t: "A parcel report", d: "Zoning and permitted uses, water rights of record, septic history, legal access and hazard mapping, before you offer.", link: "parcel-report/" },
+                 cma: { t: "A written opinion of value", d: "Comparable sales, liens, permits and hazard exposure, reconciled into one figure before you offer.", link: "is-this-house-worth-the-asking-price/" },
+                 budget: { t: "A budget sheet", d: "Taxes, insurance and utilities for each area on your board.", link: "resource-budget-reality/" } };
+  const STARTERS = [
+    { t: "A few acres and a garden", ids: ["acres", "garden", "animals", "shop", "budget"], b: 600 },
+    { t: "A slower life I can afford", ids: ["quiet", "easy", "hospital", "budget"], b: 350 },
+    { t: "Walking to dinner", ids: ["walk", "community", "river", "budget"], b: 450 },
+    { t: "Building on raw land", ids: ["offgrid", "acres", "view", "budget"], b: 300 },
+    { t: "A smaller home", ids: ["onelevel", "easy", "hospital", "garden", "budget"], b: 350 }
+  ];
+  // Josephine County residential sales Jan to Sep 2026 by band [$k upper bound, count]; and homes for sale in September at or below each price
+  const BINS = [[150,11],[200,22],[250,29],[300,65],[350,117],[400,137],[450,96],[500,66],[550,60],[600,44],[650,28],[700,25],[750,15],[800,11],[850,11],[900,10],[950,6],[1000,2]];
+  const TOTAL = 768;
+  const ACTIVE = { 150: 6, 200: 15, 250: 31, 300: 71, 350: 118, 400: 173, 450: 211, 500: 253, 550: 287, 600: 333, 650: 356, 700: 381, 750: 401, 800: 419, 850: 428, 900: 449, 950: 454, 1000: 464 };
+  const byId = Object.fromEntries(PIECES.map(p => [p.id, p]));
+
+  const pal = document.getElementById("pieces"), cork = document.getElementById("cork"), empty = document.getElementById("empty");
+  pal.innerHTML = PIECES.map(p => `<button type="button" class="chip" data-id="${p.id}" style="--c:var(${p.c})" aria-label="Add ${esc(p.name)} to your board"><b>${esc(p.name)}</b><small>${esc(p.note)}</small></button>`).join("");
+  const st = document.getElementById("starters");
+  STARTERS.forEach(s => { const b = document.createElement("button"); b.type = "button"; b.textContent = s.t; b.onclick = () => { clear(); s.ids.forEach((id, i) => setTimeout(() => add(id, null, s.b), reduce ? 0 : i * 140)); }; st.appendChild(b); });
+
+  let board = new Map(), budget = 450;
+  function spot() {
+    const w = cork.clientWidth, h = cork.clientHeight, n = board.size;
+    const cols = Math.max(1, Math.floor((w - 20) / 196)), col = n % cols, row = Math.floor(n / cols);
+    return [14 + col * ((w - 200) / Math.max(1, cols - 1 || 1)) + (Math.random() * 10 - 5), 18 + row * 112 + (Math.random() * 10 - 5)];
+  }
+  function add(id, at, b) {
+    if (board.has(id)) return;
+    const p = byId[id], el = document.createElement("div");
+    el.className = "pin" + (p.budget ? " budget" : ""); el.style.setProperty("--c", `var(${p.c})`); el.style.setProperty("--r", (Math.random() * 6 - 3).toFixed(1) + "deg");
+    if (typeof b === "number") budget = b;
+    el.innerHTML = p.budget
+      ? `<b>My top price</b><output id="pinOut"></output><label class="sr" for="pinRange" hidden>Top price</label><input type="range" id="pinRange" min="150" max="1000" step="50" value="${budget}"><button class="x" type="button" aria-label="Remove budget">×</button>`
+      : `<b>${esc(p.name)}</b><small>${esc(p.note)}</small><button class="x" type="button" aria-label="Remove ${esc(p.name)}">×</button>`;
+    const [x, y] = at || spot();
+    el.style.left = Math.max(6, Math.min(x, cork.clientWidth - (p.budget ? 266 : 182))) + "px";
+    el.style.top = Math.max(10, Math.min(y, Math.max(cork.clientHeight, 430) - 90)) + "px";
+    el.dataset.id = id; cork.appendChild(el); board.set(id, el);
+    if (y + 120 > cork.clientHeight) cork.style.minHeight = (y + 140) + "px";
+    el.querySelector(".x").onclick = e => { e.stopPropagation(); remove(id); };
+    if (p.budget) { const r = el.querySelector("input"); r.addEventListener("input", () => { budget = +r.value; render(); }); r.addEventListener("pointerdown", e => e.stopPropagation()); }
+    makeMovable(el); render();
+  }
+  function remove(id) { const el = board.get(id); if (!el) return; el.remove(); board.delete(id); render(); }
+  function clear() { [...board.keys()].forEach(remove); cork.style.minHeight = ""; }
+  document.getElementById("clear").onclick = clear;
+
+  // Drag from the palette (pointer events work for mouse, pen and touch); a simple tap adds the piece
+  pal.addEventListener("pointerdown", e => {
+    const chip = e.target.closest(".chip"); if (!chip || chip.classList.contains("used")) return;
+    const id = chip.dataset.id, sx = e.clientX, sy = e.clientY; let ghost = null, moved = false;
+    const move = ev => {
+      if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 8) return;
+      if (!moved) { moved = true; ghost = chip.cloneNode(true); ghost.classList.add("ghost"); document.body.appendChild(ghost); chip.classList.add("dragging"); }
+      ghost.style.left = (ev.clientX - 95) + "px"; ghost.style.top = (ev.clientY - 40) + "px";
+      const r = cork.getBoundingClientRect(); cork.classList.toggle("over", ev.clientX > r.left && ev.clientX < r.right && ev.clientY > r.top && ev.clientY < r.bottom);
+    };
+    const up = ev => {
+      removeEventListener("pointermove", move); removeEventListener("pointerup", up);
+      chip.classList.remove("dragging"); cork.classList.remove("over");
+      if (ghost) { ghost.remove(); const r = cork.getBoundingClientRect();
+        if (ev.clientX > r.left && ev.clientX < r.right && ev.clientY > r.top && ev.clientY < r.bottom) add(id, [ev.clientX - r.left - 90, ev.clientY - r.top - 30]); }
+      else add(id);
+    };
+    addEventListener("pointermove", move); addEventListener("pointerup", up);
+  });
+  pal.addEventListener("keydown", e => { const chip = e.target.closest(".chip"); if (chip && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); add(chip.dataset.id); } });
+  pal.addEventListener("click", e => { if (e.detail === 0) { const chip = e.target.closest(".chip"); if (chip) add(chip.dataset.id); } });
+
+  function makeMovable(el) {
+    el.addEventListener("pointerdown", e => {
+      if (e.target.closest("button, input")) return;
+      const r0 = el.getBoundingClientRect(), dx = e.clientX - r0.left, dy = e.clientY - r0.top; el.setPointerCapture(e.pointerId); el.style.zIndex = 5;
+      const mv = ev => { const r = cork.getBoundingClientRect(); el.style.left = Math.max(0, Math.min(ev.clientX - r.left - dx, r.width - el.offsetWidth)) + "px"; el.style.top = Math.max(0, Math.min(ev.clientY - r.top - dy, r.height - el.offsetHeight)) + "px"; };
+      const end = () => { el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", end); el.style.zIndex = ""; };
+      el.addEventListener("pointermove", mv); el.addEventListener("pointerup", end);
+    });
+  }
+
+  const fmt = k => k >= 1000 ? "$1,000,000" : "$" + (k * 1000).toLocaleString("en-US");
+  function render() {
+    const ids = [...board.keys()], pieces = ids.map(i => byId[i]);
+    empty.hidden = ids.length > 0;
+    document.getElementById("count").textContent = ids.length === 1 ? "1 piece" : ids.length + " pieces";
+    document.querySelectorAll(".chip").forEach(c => c.classList.toggle("used", board.has(c.dataset.id)));
+    const o = document.getElementById("pinOut"); if (o) o.textContent = fmt(budget);
+    // Where it fits: score each area by how many pieces it supports
+    const scored = Object.keys(AREA_NAMES).map(a => ({ a, s: pieces.filter(p => p.areas && p.areas.includes(a)).length })).sort((x, y) => y.s - x.s);
+    const placeable = pieces.filter(p => p.areas).length;
+    const best = scored[0] && scored[0].s ? scored.filter(x => x.s === scored[0].s).map(x => x.a) : [];
+    if (window.__areaMap) window.__areaMap.light(best, placeable > 0);
+    document.getElementById("mapHint").classList.toggle("gone", placeable > 0);
+    const see = document.getElementById("seeMap"); see.hidden = !placeable; if (placeable) see.textContent = (best.length === 1 ? "1 area fits" : best.length + " areas fit") + " your board. See them on the map \u2193";
+    const title = document.getElementById("howTitle"), sub = document.getElementById("howSub");
+    if (!placeable) { title.textContent = ids.length ? "Add a few more pieces" : "Add a piece to see where it fits"; sub.textContent = "The map lights up where your board fits best."; }
+    else {
+      const names = best.map(a => AREA_NAMES[a]);
+      title.textContent = names.length === 1 ? `${names[0]} fits your board best` : `Your board fits ${names.slice(0, -1).join(", ")} and ${names.slice(-1)}`;
+      const full = scored.filter(x => x.s === placeable).length;
+      sub.textContent = full ? `${full === 1 ? "One area matches" : full + " areas match"} every piece on your board. Point to any lit area for what it's like.` : "No single area has everything on your board. Each lit area matches the most pieces; a conversation sorts out which ones matter most.";
+    }
+    // Budget reality
+    const bud = document.getElementById("ansBudget");
+    if (board.has("budget")) {
+      let sold = 0; BINS.forEach(([u, n]) => { if (u <= budget) sold += n; });
+      const pct = Math.round(sold / TOTAL * 100), land = pieces.some(p => ["acres", "offgrid", "animals"].includes(p.id));
+      bud.innerHTML = `<h4>What your budget buys</h4><p class="big">${pct}%</p><p>of the ${TOTAL} homes sold in Josephine County this year went for ${fmt(budget)} or less. In September, ${ACTIVE[budget]} homes were for sale in that range.</p>${land ? '<p class="muted">Acreage prices vary widely with water, access and outbuildings, so a parcel can sit well above or below these figures.</p>' : ""}<p class="muted">Southern Oregon MLS, January to September 2026.</p>`;
+    } else bud.innerHTML = `<h4>What your budget buys</h4><p>Add <b>A budget</b> to your board to see what share of this year's sales it covers.</p>`;
+    // What to check
+    const checks = pieces.filter(p => p.check).map(p => p.check);
+    document.getElementById("ansCheck").innerHTML = `<h4>What to check</h4>${checks.length ? `<ul>${checks.map(c => `<li>${esc(c)}</li>`).join("")}</ul>` : "<p>Your list of things to check builds as you add pieces.</p>"}`;
+    // What I prepare
+    const preps = [...new Set(pieces.map(p => p.budget ? "budget" : p.prep))].map(k => PREP[k]);
+    document.getElementById("ansPrep").innerHTML = `<h4>What I prepare for you</h4>${preps.length ? preps.map(p => `<p><b>${esc(p.t)}</b><br><span class="muted">${esc(p.d)}</span> <a href="${SITE}${p.link}" target="_blank" rel="noopener">More</a></p>`).join("") : "<p>The documents you'll receive appear here.</p>"}`;
+  }
+
+  // TEXT ONLY switch
+  const tb = document.getElementById("textBtn"), root = document.documentElement;
+  const setText = on => { root.classList.toggle("text-mode", on); tb.setAttribute("aria-pressed", String(on)); tb.textContent = on ? "FULL PAGE" : "TEXT ONLY"; scrollTo(0, 0); };
+  tb.onclick = () => setText(!root.classList.contains("text-mode"));
+  document.getElementById("backFull").onclick = e => { e.preventDefault(); setText(false); };
+
+  addEventListener("resize", () => board.forEach(el => { el.style.left = Math.min(parseFloat(el.style.left), cork.clientWidth - el.offsetWidth) + "px"; }));
+  render();
+})();
+</script>
